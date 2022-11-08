@@ -9,16 +9,21 @@ repository = "https://github.com/fbucek/sqlxinsert"
 readme = "README.md"
 exclude = [".github/*"]
 
+[features]
+default = ["sqlite"]
+sqlite = []
+postgres = ["sqlx/postgres"]
+
 [lib]
 proc-macro = true
 
 [dependencies]
-eyre = "0.6"
+anyhow = "1.0"
 quote = "1.0"
 syn = "1.0"
 async-trait = "0.1"
-sqlx = { version = "0.6", default-features = false, features = ["runtime-actix-rustls", "sqlite", "postgres"] }
+sqlx = { version = "0.6", default-features = false, features = ["runtime-actix-rustls", "sqlite"] }
 
 [dev-dependencies]
 tokio = { version = "1.19", features= ["rt-multi-thread",  "macros"] }
-sqlx = { version = "0.6", default-features = false, features = ["runtime-actix-rustls", "macros", "sqlite", "postgres"] }
+sqlx = { version = "0.6", default-features = false, features = ["runtime-actix-rustls", "macros", "sqlite"] }
