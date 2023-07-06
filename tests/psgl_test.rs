@@ -1,6 +1,8 @@
 // extern crate we're testing, same as any other code will do.
 //extern crate gmacro;
 
+#[cfg(feature = "postgres")]
+mod test {
 // use sqlx::PgQuery;
 
 // #[derive(Default, Debug, sqlx::FromRow)]
@@ -72,4 +74,5 @@ async fn test_macro_insert() {
     assert_eq!(cars[0].id, 1);
     assert_eq!(cars[1].name, "Tesla");
     assert_eq!(cars[1].id, 2);
+}
 }

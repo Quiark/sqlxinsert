@@ -1,3 +1,5 @@
+#[cfg(feature = "postgres")]
+mod test {
 // #[derive(Default, Debug, sqlx::FromRow)]
 #[derive(Default, Debug, sqlx::FromRow)]
 struct Car {
@@ -69,4 +71,5 @@ async fn test_macro_psql_insert() {
 
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].car_name, "Skoda");
+}
 }

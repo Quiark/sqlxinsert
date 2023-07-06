@@ -85,9 +85,76 @@ pub fn derive_from_struct_sqlite(input: TokenStream) -> TokenStream {
                 #(
                     .bind(&self.#field_name2)//         let #field_name: #field_type = Default::default();
                 )*
-                    .execute(txn)
+                    .execute(&mut **txn)
                     .await?
                 )
+            }
+        }
+    })
+}
+
+/// Generates a method for updating the whole existing object in the database.
+/// Requires that the object has a primary key named `id`.
+#[cfg(feature = "sqlite")]
+#[proc_macro_derive(SqliteUpdate)]
+pub fn derive_update_from_struct_sqlite(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    let fields = match &input.data {
+        Data::Struct(DataStruct {
+            fields: Fields::Named(fields),
+            ..
+        }) => &fields.named,
+        _ => panic!("expected a struct with named fields"),
+    };
+
+    // Attributes -> field names
+    //let field_name = fields.iter().map(|field| &field.ident);
+    let field_name2 = fields.iter().map(|field| &field.ident);
+    let field_name3 = fields.iter().map(|field| &field.ident);
+
+    let struct_name = &input.ident;
+
+    //let field_length = field_name.len();
+    // ( $1, $2)
+    // let values = dollar_values(field_length);
+
+    /*
+    let fields_list = quote! {
+        #( #field_name ),*
+    };
+    */
+    // let columns = format!("{}", fields_list);
+    /*
+    let assign_list = quote! {
+        #( format!("{} = ?", #field_name3) ),*
+    };
+    */
+
+    let assigns = field_name3.map(|i| format!(
+                "{} = ?", i.as_ref().map_or(String::new(), |it| it.to_string())
+    )).collect::<Vec<String>>().join(",");
+
+    TokenStream::from(quote! {
+
+        impl #struct_name {
+            pub fn update_query(&self, table: &str) -> String
+            {
+                let sqlquery = format!("update {} set {} where id = ?", table, #assigns);
+                sqlquery
+            }
+
+            pub async fn update_raw(&self, txn: &mut sqlx::Transaction<'_, Sqlite>, table: &str, id: &str) -> anyhow::Result<sqlx::sqlite::SqliteQueryResult>
+            {
+                let sql = self.update_query(table);
+                Ok(sqlx::query(&sql)
+                #(
+                    .bind(&self.#field_name2)
+                )*
+                    .bind(id)
+                    .execute(&mut **txn)
+                    .await?)
+                
             }
         }
     })
