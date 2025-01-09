@@ -55,8 +55,7 @@ pub fn derive_from_struct_sqlite(input: TokenStream) -> TokenStream {
     };
 
     // Attributes -> field names
-    let field_name = fields.iter().map(|field| &field.ident);
-    let field_name2 = fields.iter().map(|field| &field.ident);
+    let field_name: Vec<_> = fields.iter().map(|field| &field.ident).collect();
 
     let struct_name = &input.ident;
 
@@ -83,11 +82,35 @@ pub fn derive_from_struct_sqlite(input: TokenStream) -> TokenStream {
                 let sql = self.insert_query(table);
                 Ok(sqlx::query(&sql)
                 #(
-                    .bind(&self.#field_name2)//         let #field_name: #field_type = Default::default();
+                    .bind(&self.#field_name)//         let #field_name: #field_type = Default::default();
                 )*
                     .execute(&mut **txn)
                     .await?
                 )
+            }
+
+            /// Adds placeholders and binds values to the query builder (without parens).
+            pub fn sql_add_all_values<'s: 'r, 'r>(&'s self, builder: &'s mut sqlx::query_builder::QueryBuilder<'r, Sqlite>
+                ) -> &'s mut sqlx::query_builder::QueryBuilder<'r, Sqlite> 
+            {
+                let mut sep = builder.separated(", ");
+                sep
+                #(
+                    .push_bind(&self.#field_name)
+                )*;
+                builder
+            }
+
+            /** Adds a list of column names to the query builder (without parens). The order is the
+             * same as column values added by `sql_add_all_values`*/
+            pub fn sql_add_all_columns<'s, 'r>(&'s self, builder: &'s mut sqlx::query_builder::QueryBuilder<'r, Sqlite>
+                ) -> &'s mut sqlx::query_builder::QueryBuilder<'r, Sqlite> {
+                let mut sep = builder.separated(", ");
+                sep
+                #(
+                    .push(stringify!(#field_name))
+                )*;
+                builder
             }
         }
     })
@@ -110,8 +133,8 @@ pub fn derive_update_from_struct_sqlite(input: TokenStream) -> TokenStream {
 
     // Attributes -> field names
     //let field_name = fields.iter().map(|field| &field.ident);
-    let field_name2 = fields.iter().map(|field| &field.ident);
-    let field_name3 = fields.iter().map(|field| &field.ident);
+    let field_name2: Vec<_> = fields.iter().map(|field| &field.ident).collect();
+
 
     let struct_name = &input.ident;
 
@@ -131,7 +154,7 @@ pub fn derive_update_from_struct_sqlite(input: TokenStream) -> TokenStream {
     };
     */
 
-    let assigns = field_name3.map(|i| format!(
+    let assigns = field_name2.iter().map(|i| format!(
                 "{} = ?", i.as_ref().map_or(String::new(), |it| it.to_string())
     )).collect::<Vec<String>>().join(",");
 
@@ -155,6 +178,19 @@ pub fn derive_update_from_struct_sqlite(input: TokenStream) -> TokenStream {
                     .execute(&mut **txn)
                     .await?)
                 
+            }
+
+            /** Adds the "column = ?" comma separated list to the query and binds the values
+             */
+            pub fn sql_add_all_set<'s: 'r, 'r>(&'s self, builder: &'s mut sqlx::query_builder::QueryBuilder<'r, Sqlite>
+                ) -> &'s mut sqlx::query_builder::QueryBuilder<Sqlite> {
+                let mut sep = builder.separated(", ");
+                sep
+                #(
+                    .push_unseparated(format!("{} = ", stringify!(#field_name2)))
+                    .push_bind(&self.#field_name2)
+                )*;
+                builder
             }
         }
     })
